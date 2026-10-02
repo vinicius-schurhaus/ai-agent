@@ -1,6 +1,7 @@
 import os
 import argparse
 import json
+import sys
 
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -9,7 +10,6 @@ from call_function import available_functions
 from functions.call_function import call_function
 
 load_dotenv()
-
 
 api_key = os.environ.get("OPENROUTER_API_KEY")
 
@@ -34,30 +34,42 @@ messages = [
     {"role": "user", "content": args.user_prompt},
 ]
 
-response = client.chat.completions.create(
-    model="openrouter/free",
-    messages=messages,
-    tools=available_functions,
-)
+finished = False
 
-if response.usage is None:
-    raise RuntimeError("The API response did not include token usage information.")
+for _ in range(20):
+    response = client.chat.completions.create(
+        model="openrouter/free",
+        messages=messages,
+        tools=available_functions,
+    )
 
-if args.verbose:
-    print(f"User prompt: {args.user_prompt}")
-    print(f"Prompt tokens: {response.usage.prompt_tokens}")
-    print(f"Response tokens: {response.usage.completion_tokens}")
+    if response.usage is None:
+        raise RuntimeError("The API response did not include token usage information.")
 
-message = response.choices[0].message
+    if args.verbose:
+        print(f"User prompt: {args.user_prompt}")
+        print(f"Prompt tokens: {response.usage.prompt_tokens}")
+        print(f"Response tokens: {response.usage.completion_tokens}")
 
-if message.tool_calls:
-    for tool_call in message.tool_calls:
-        result_message = call_function(tool_call)
+    message = response.choices[0].message
+    messages.append(message)
 
-        if not result_message["content"]:
-            raise Exception("Tool call returned an empty content")
+    if message.tool_calls:
+        for tool_call in message.tool_calls:
+            result_message = call_function(tool_call)
 
-        if args.verbose:
-            print(f"-> {result_message['content']}")
-else:
-    print(message.content)
+            if not result_message["content"]:
+                raise Exception("Tool call returned an empty content")
+
+            if args.verbose:
+                print(f"-> {result_message['content']}")
+
+            messages.append(result_message)
+    else:
+        print(message.content)
+        finished = True
+        break
+
+if not finished:
+    print("Error: Maximum number of iterations reached without a final response.")
+    sys.exit(1)
