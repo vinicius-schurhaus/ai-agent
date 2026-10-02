@@ -30,3 +30,29 @@ def get_files_info(working_directory: str, directory: str = ".") -> str:
 
     except Exception as e:
         return f"Error: {e}"
+
+
+schema_get_files_info = {
+    "type": "function",
+    "function": {
+        "name": "get_files_info",
+        "description": (
+            "List the contents of a directory. Use this function when the user "
+            "asks to list, show, inspect, or see the files and directories inside "
+            "a directory. This function does not read file contents."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "directory": {
+                    "type": "string",
+                    "description": (
+                        "Directory path to list, relative to the working directory. "
+                        "Use '.' when the user asks to list the current directory."
+                    ),
+                },
+            },
+            "required": ["directory"],
+        },
+    },
+}
